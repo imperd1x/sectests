@@ -1,0 +1,33 @@
+<section class="settings-view">
+  <h2>Account Settings</h2>
+  <form id="settings-form" class="settings-form">
+    <div class="settings-section">
+      <h3>Profile</h3>
+      <label>
+        Display Name
+        <input type="text" id="settings-name" placeholder="Your name">
+      </label>
+      <label>
+        Public Bio
+        <textarea id="settings-bio" rows="4" placeholder="Tell people something about you"></textarea>
+      </label>
+    </div>
+
+    <div class="settings-section">
+      <h3>Contact</h3>
+      <label>
+        Email Address
+        <input type="email" id="settings-email" disabled>
+      </label>
+      <label class="settings-toggle">
+        <input type="checkbox" id="settings-updates">
+        <span>Send me product announcements</span>
+      </label>
+    </div>
+
+    <div class="settings-actions">
+      <button type="submit">Save Changes</button>
+      <span id="settings-status" class="settings-status"></span>
+    </div>
+  </form>
+</section>

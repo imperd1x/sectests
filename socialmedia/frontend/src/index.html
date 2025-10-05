@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Insecure Social Media</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="login-container" class="panel">
+    <h1>Social Media Login</h1>
+    <form id="login-form">
+      <label>Email <input type="email" name="email" value="admin@example.com" required></label>
+      <label>Password <input type="password" name="password" value="user123" required></label>
+      <button type="submit">Login</button>
+    </form>
+    <div class="default-creds">
+      <p>Default accounts (click to fill):</p>
+      <ul>
+        <li><button type="button" class="prefill-account" data-email="admin@example.com" data-password="user123">admin@example.com / user123</button></li>
+        <li><button type="button" class="prefill-account" data-email="user@example.com" data-password="user123">user@example.com / user123</button></li>
+      </ul>
+    </div>
+  </div>
+
+  <div id="app" class="hidden">
+    <header class="top-bar">
+      <div class="title">Social Media</div>
+      <div class="user-info">
+        <span id="user-email"></span>
+        <button id="logout-button">Logout</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <nav class="sidebar">
+        <ul id="nav-links"></ul>
+      </nav>
+      <main class="content" id="view-container"></main>
+    </div>
+  </div>
+
+  <script src="/config.js"></script>
+  <script src="api.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

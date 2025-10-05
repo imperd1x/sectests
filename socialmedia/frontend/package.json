@@ -1,0 +1,12 @@
+{
+  "name": "insecure-social-frontend",
+  "version": "1.0.0",
+  "description": "Intentionally vulnerable social media frontend for local training.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

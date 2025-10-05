@@ -1,0 +1,65 @@
+version: '3.9'
+
+services:
+  mysql:
+    image: mysql:8
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: social
+    ports:
+      - "3307:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./backend/src/seed/seed.sql:/docker-entrypoint-initdb.d/seed.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    image: node:20
+    working_dir: /app/backend
+    environment:
+      DB_HOST: mysql
+      DB_USER: root
+      DB_PASSWORD: root
+      DB_NAME: social
+      JWT_SECRET: devsecret
+      NODE_ENV: development
+      PORT: 3000
+    volumes:
+      - ./backend:/app/backend
+      - ./backend/uploads:/app/backend/uploads
+    command: sh -c "npm install && node src/server.js"
+    ports:
+      - "3000:3000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  frontend:
+    image: node:20
+    working_dir: /app/frontend
+    environment:
+      PUBLIC_API_BASE: http://localhost:3000
+      PORT: 8080
+    volumes:
+      - ./frontend:/app/frontend
+    command: sh -c "npm install && npm run start"
+    ports:
+      - "8080:8080"
+    depends_on:
+      - backend
+
+  adminer:
+    image: adminer:latest
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    depends_on:
+      - mysql
+
+volumes:
+  db_data:
