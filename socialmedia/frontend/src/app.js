@@ -5,6 +5,50 @@ let state = {
   view: params.get('view') || 'profile'
 };
 
+const API_ORIGIN = window.API_BASE || 'http://localhost:3000';
+const STATIC_PHOTO_BASE = `${API_ORIGIN}/static-photos`;
+const FALLBACK_AVATAR = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==';
+
+const formatAvatarBasename = (id) => {
+  const numericId = Number(id);
+  if (!Number.isFinite(numericId) || numericId <= 0) {
+    return null;
+  }
+  return `avatar_${String(numericId).padStart(3, '0')}`;
+};
+
+const applyAvatarToElement = (img, id, altText) => {
+  if (!img) return;
+  img.alt = altText || img.alt || 'User avatar';
+  const baseName = formatAvatarBasename(id);
+  if (!baseName) {
+    img.onerror = null;
+    img.src = FALLBACK_AVATAR;
+    return;
+  }
+
+  const pngUrl = `${STATIC_PHOTO_BASE}/${baseName}.png`;
+  const jpgUrl = `${STATIC_PHOTO_BASE}/${baseName}.jpg`;
+  img.src = pngUrl;
+  img.onerror = () => {
+    if (img.src === pngUrl) {
+      img.src = jpgUrl;
+      return;
+    }
+    img.onerror = null;
+    img.src = FALLBACK_AVATAR;
+  };
+};
+
+const hydrateAvatarImages = (root) => {
+  const scope = root || document;
+  scope.querySelectorAll('img[data-avatar-user-id]').forEach((img) => {
+    const userId = img.getAttribute('data-avatar-user-id');
+    const alt = img.getAttribute('data-avatar-alt') || img.alt;
+    applyAvatarToElement(img, userId, alt);
+  });
+};
+
 const loginContainer = document.getElementById('login-container');
 const appContainer = document.getElementById('app');
 const navList = document.getElementById('nav-links');
@@ -282,8 +326,7 @@ const setupProfileView = async () => {
     emailEl.textContent = profile.email;
     roleEl.textContent = profile.role;
     bioEl.textContent = profile.bio || 'No bio provided yet.';
-    avatar.src = `https://avatars.dicebear.com/api/initials/${encodeURIComponent(profile.email)}.svg`;
-    avatar.alt = `${profile.email} avatar`;
+    applyAvatarToElement(avatar, profile.id, `${profile.email} avatar`);
   };
 
   const loadProfile = async (id) => {
@@ -327,8 +370,7 @@ const setupPublicProfileView = async () => {
     document.getElementById('public-role').textContent = `Role: ${profile.role}`;
     document.getElementById('public-bio').textContent = profile.bio || 'No bio provided yet.';
     const avatar = document.getElementById('public-avatar');
-    avatar.src = `https://avatars.dicebear.com/api/initials/${encodeURIComponent(profile.email)}.svg`;
-    avatar.alt = `${profile.email} avatar`;
+    applyAvatarToElement(avatar, profile.id, `${profile.email} avatar`);
 
     const gallery = document.getElementById('public-photo-gallery');
     const photos = await api.listPhotosByUser(userId);
@@ -381,12 +423,11 @@ const setupFriendsView = async () => {
     }
     listContainer.innerHTML = friends
       .map((f) => {
-        const avatar = encodeURIComponent(f.friendEmail || 'friend');
         const name = f.friendName || f.friendEmail || 'Unknown Friend';
         // VULN: nickname is injected directly into the DOM without sanitization.
         return `
           <li class="friend-card">
-            <img src="https://avatars.dicebear.com/api/initials/${avatar}.svg" alt="${name} avatar" class="friend-avatar">
+            <img class="friend-avatar" data-avatar-user-id="${f.friend_id ?? ''}" data-avatar-alt="${name} avatar" alt="${name} avatar">
             <div class="friend-card-body">
               <div class="friend-name">${name}</div>
               <div class="friend-nickname">${f.nickname}</div>
@@ -400,6 +441,7 @@ const setupFriendsView = async () => {
       })
       .join('');
     updateCount(friends.length, friendsCache.length);
+    hydrateAvatarImages(listContainer);
   };
 
   const filterFriends = () => {
@@ -482,15 +524,18 @@ const setupMessagesView = async () => {
     if (!contact) {
       chatName.textContent = 'Select a friend';
       chatEmail.textContent = '';
-      chatAvatar.src = 'https://avatars.dicebear.com/api/initials/unknown.svg';
+      applyAvatarToElement(chatAvatar, null, 'No contact selected avatar');
       form.querySelector('button[type="submit"]').disabled = true;
       textarea.disabled = true;
       return;
     }
     chatName.textContent = contact.friendName || contact.friendEmail;
     chatEmail.textContent = contact.friendEmail || '';
-    chatAvatar.src = `https://avatars.dicebear.com/api/initials/${encodeURIComponent(contact.friendEmail || 'friend')}.svg`;
-    chatAvatar.alt = `${contact.friendEmail || contact.friendName} avatar`;
+    applyAvatarToElement(
+      chatAvatar,
+      contact.friend_id,
+      `${contact.friendEmail || contact.friendName} avatar`
+    );
     form.querySelector('button[type="submit"]').disabled = false;
     textarea.disabled = false;
   };
@@ -536,7 +581,7 @@ const setupMessagesView = async () => {
         const badge = contact.isFriend ? '<span class="contact-badge">Friend</span>' : '';
         return `
           <button class="contact-item ${isActive ? 'active' : ''}" data-id="${contact.friend_id}">
-            <img src="https://avatars.dicebear.com/api/initials/${encodeURIComponent(contact.friendEmail || 'friend')}.svg" alt="${contact.friendEmail || contact.friendName} avatar" class="contact-avatar">
+            <img class="contact-avatar" data-avatar-user-id="${contact.friend_id ?? ''}" data-avatar-alt="${contact.friendEmail || contact.friendName} avatar" alt="${contact.friendEmail || contact.friendName} avatar">
             <div class="contact-text">
               <span class="contact-name">${contact.friendName || contact.friendEmail}</span>
               <span class="contact-email">${contact.friendEmail || ''}</span>
@@ -545,6 +590,7 @@ const setupMessagesView = async () => {
           </button>`;
       })
       .join('');
+    hydrateAvatarImages(contactsContainer);
   };
 
   const setActiveContact = async (contactId) => {
@@ -651,6 +697,7 @@ const setupSearchView = () => {
       resultsContainer.innerHTML = `
         <div class="search-message">No direct matches. Here are some people you can invite:</div>
         <div class="search-grid">${suggestions.map((user) => renderCard(user)).join('')}</div>`;
+      hydrateAvatarImages(resultsContainer);
       return;
     }
 
@@ -659,6 +706,7 @@ const setupSearchView = () => {
       ? ''
       : '<div class="search-message">Suggested people to connect with</div>';
     resultsContainer.innerHTML = `${header}<div class="search-grid">${list.map((user) => renderCard(user)).join('')}</div>`;
+    hydrateAvatarImages(resultsContainer);
   };
 
   const renderCard = (user) => {
@@ -685,7 +733,7 @@ const setupSearchView = () => {
     return `
       <article class="search-card" data-id="${user.id}">
         <header>
-          <img src="https://avatars.dicebear.com/api/initials/${encodeURIComponent(user.email || 'user')}.svg" alt="${user.email} avatar" class="search-avatar">
+          <img class="search-avatar" data-avatar-user-id="${user.id ?? ''}" data-avatar-alt="${user.email} avatar" alt="${user.email} avatar">
           <div>
             <div class="search-name">${user.name || user.email}</div>
             <div class="search-email">${user.email}</div>
@@ -852,8 +900,11 @@ const setupSettingsView = () => {
     if (updatesCheckbox) {
       localStorage.setItem(prefKey, updatesCheckbox.checked ? '1' : '0');
     }
-    if (passwordInput.value || confirmInput.value) {
-      if (passwordInput.value !== confirmInput.value) {
+    const passwordValue = passwordInput?.value || '';
+    const confirmValue = confirmInput?.value || '';
+
+    if (passwordValue || confirmValue) {
+      if (passwordValue !== confirmValue) {
         statusEl.textContent = 'Passwords do not match.';
         return;
       }
@@ -869,8 +920,12 @@ const setupSettingsView = () => {
       setTimeout(() => {
         statusEl.textContent = '';
       }, 5000);
-      passwordInput.value = '';
-      confirmInput.value = '';
+      if (passwordInput) {
+        passwordInput.value = '';
+      }
+      if (confirmInput) {
+        confirmInput.value = '';
+      }
     } catch (err) {
       statusEl.textContent = 'Request failed';
       setTimeout(() => {
