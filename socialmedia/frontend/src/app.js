@@ -927,7 +927,9 @@ const setupSettingsView = () => {
         confirmInput.value = '';
       }
     } catch (err) {
-      statusEl.textContent = 'Request failed';
+      const message = err?.message || 'Request failed';
+      const detail = err?.data?.error;
+      statusEl.textContent = detail && detail !== message ? `${message} (${detail})` : message;
       setTimeout(() => {
         statusEl.textContent = '';
       }, 5000);

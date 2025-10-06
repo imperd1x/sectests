@@ -10,6 +10,28 @@ const buildUrl = (path, params = {}) => {
   return url.toString();
 };
 
+const readJsonSafely = async (res) => {
+  const text = await res.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    return { raw: text };
+  }
+};
+
+const handleJsonResponse = async (res, fallbackMessage = 'Request failed') => {
+  const data = await readJsonSafely(res);
+  if (!res.ok) {
+    const message = data.error || data.message || fallbackMessage;
+    const error = new Error(message);
+    error.status = res.status;
+    error.data = data;
+    throw error;
+  }
+  return data;
+};
+
 const api = {
   login: async (email, password, nextParam) => {
     const url = buildUrl('/api/auth/login', nextParam ? { next: nextParam } : {});
@@ -19,11 +41,7 @@ const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, next: nextParam })
     });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      throw new Error(data.message || 'Login failed');
-    }
-    return data;
+    return handleJsonResponse(res, 'Login failed');
   },
   logout: async () => {
     const url = buildUrl('/api/auth/logout');
@@ -31,13 +49,12 @@ const api = {
       method: 'POST',
       credentials: 'include'
     });
-    return res.json();
+    return handleJsonResponse(res, 'Logout failed');
   },
   getProfile: async (id) => {
     const url = buildUrl(`/api/users/${id}`);
     const res = await fetch(url, { credentials: 'include' });
-    if (!res.ok) throw new Error('Unable to load profile');
-    return res.json();
+    return handleJsonResponse(res, 'Unable to load profile');
   },
   updateProfile: async (id, payload) => {
     const url = buildUrl(`/api/users/${id}`);
@@ -47,12 +64,12 @@ const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    return res.json();
+    return handleJsonResponse(res, 'Profile update failed');
   },
   listFriends: async () => {
     const url = buildUrl('/api/friends');
     const res = await fetch(url, { credentials: 'include' });
-    return res.json();
+    return handleJsonResponse(res, 'Unable to load friends');
   },
   addFriend: async (friendId, nickname) => {
     const url = buildUrl('/api/friends/add');
@@ -62,7 +79,7 @@ const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ friendId, nickname })
     });
-    return res.json();
+    return handleJsonResponse(res, 'Add friend failed');
   },
   removeFriend: async (id) => {
     const url = buildUrl(`/api/friends/${id}`);
@@ -70,12 +87,12 @@ const api = {
       method: 'DELETE',
       credentials: 'include'
     });
-    return res.json();
+    return handleJsonResponse(res, 'Remove friend failed');
   },
   getMessages: async (userId) => {
     const url = buildUrl('/api/messages', { userId });
     const res = await fetch(url, { credentials: 'include' });
-    return res.json();
+    return handleJsonResponse(res, 'Unable to load messages');
   },
   sendMessage: async (payload) => {
     const url = buildUrl('/api/messages/send');
@@ -85,12 +102,12 @@ const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    return res.json();
+    return handleJsonResponse(res, 'Send message failed');
   },
   searchUsers: async (q) => {
     const url = buildUrl('/api/search', { q });
     const res = await fetch(url, { credentials: 'include' });
-    return res.json();
+    return handleJsonResponse(res, 'Search failed');
   },
   getPhoto: async (filename) => {
     const url = buildUrl(`/api/photos/${filename}`);
@@ -99,7 +116,7 @@ const api = {
   listPhotosByUser: async (userId) => {
     const url = buildUrl(`/api/photos/user/${userId}`);
     const res = await fetch(url, { credentials: 'include' });
-    return res.json();
+    return handleJsonResponse(res, 'Unable to load photos');
   },
   publishPhoto: async (payload) => {
     const url = buildUrl('/api/photos/publish');
@@ -109,11 +126,7 @@ const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    if (!res.ok) {
-      const error = await res.json().catch(() => ({ message: 'Publish failed' }));
-      throw new Error(error.message || 'Publish failed');
-    }
-    return res.json();
+    return handleJsonResponse(res, 'Publish failed');
   },
   deletePhoto: async (id) => {
     const url = buildUrl(`/api/photos/item/${id}`);
@@ -121,11 +134,7 @@ const api = {
       method: 'DELETE',
       credentials: 'include'
     });
-    if (!res.ok) {
-      const error = await res.json().catch(() => ({ message: 'Delete failed' }));
-      throw new Error(error.message || 'Delete failed');
-    }
-    return res.json();
+    return handleJsonResponse(res, 'Delete failed');
   },
   setBlockStatus: async (userId, blocked) => {
     const url = buildUrl(`/api/admin/users/${userId}/block`);
@@ -135,17 +144,12 @@ const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ blocked })
     });
-    if (!res.ok) {
-      const error = await res.json().catch(() => ({ message: 'Update failed' }));
-      throw new Error(error.message || 'Update failed');
-    }
-    return res.json();
+    return handleJsonResponse(res, 'Update failed');
   },
   adminListFiles: async () => {
     const url = buildUrl('/api/admin/files');
     const res = await fetch(url, { credentials: 'include' });
-    if (!res.ok) throw new Error('Unable to load admin files');
-    return res.json();
+    return handleJsonResponse(res, 'Unable to load admin files');
   },
   adminUploadFile: async (payload) => {
     const url = buildUrl('/api/admin/files/upload');
@@ -155,11 +159,7 @@ const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    if (!res.ok) {
-      const error = await res.json().catch(() => ({ message: 'Upload failed' }));
-      throw new Error(error.message || 'Upload failed');
-    }
-    return res.json();
+    return handleJsonResponse(res, 'Upload failed');
   },
   adminDeleteFile: async (name) => {
     const url = buildUrl(`/api/admin/files/${encodeURIComponent(name)}`);
@@ -167,17 +167,12 @@ const api = {
       method: 'DELETE',
       credentials: 'include'
     });
-    if (!res.ok) {
-      const error = await res.json().catch(() => ({ message: 'Delete failed' }));
-      throw new Error(error.message || 'Delete failed');
-    }
-    return res.json();
+    return handleJsonResponse(res, 'Delete failed');
   },
   fetchFeed: async () => {
     const url = buildUrl('/api/posts/feed');
     const res = await fetch(url, { credentials: 'include' });
-    if (!res.ok) throw new Error('Unable to load feed');
-    return res.json();
+    return handleJsonResponse(res, 'Unable to load feed');
   },
   createPost: async (content) => {
     const url = buildUrl('/api/posts');
@@ -187,11 +182,7 @@ const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content })
     });
-    if (!res.ok) {
-      const error = await res.json().catch(() => ({ message: 'Post failed' }));
-      throw new Error(error.message || 'Post failed');
-    }
-    return res.json();
+    return handleJsonResponse(res, 'Post failed');
   },
   updatePost: async (id, content) => {
     const url = buildUrl(`/api/posts/${id}`);
@@ -201,11 +192,7 @@ const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content })
     });
-    if (!res.ok) {
-      const error = await res.json().catch(() => ({ message: 'Update failed' }));
-      throw new Error(error.message || 'Update failed');
-    }
-    return res.json();
+    return handleJsonResponse(res, 'Update failed');
   },
   deletePost: async (id) => {
     const url = buildUrl(`/api/posts/${id}`);
@@ -213,11 +200,7 @@ const api = {
       method: 'DELETE',
       credentials: 'include'
     });
-    if (!res.ok) {
-      const error = await res.json().catch(() => ({ message: 'Delete failed' }));
-      throw new Error(error.message || 'Delete failed');
-    }
-    return res.json();
+    return handleJsonResponse(res, 'Delete failed');
   },
   updateSettings: async (payload) => {
     const url = buildUrl('/api/settings/update');
@@ -227,12 +210,12 @@ const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    return res.json();
+    return handleJsonResponse(res, 'Settings update failed');
   },
   getNotifications: async (nextParam) => {
     const url = buildUrl('/api/notifications', nextParam ? { next: nextParam } : {});
     const res = await fetch(url, { credentials: 'include' });
-    return res.json();
+    return handleJsonResponse(res, 'Unable to load notifications');
   }
 };
 
